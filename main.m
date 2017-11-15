@@ -3,7 +3,6 @@ clear all;
 close all;
 
 %% %%%%%...System Parameters...%%%%%%
-%Users=[1,32,64]; %Number of active users in the system
 Users=[16];
 nBits=2560;            %Number of bits per user
 blockSize=256;          %when decreasing block size perofrmance is better 
@@ -17,13 +16,10 @@ decItr=6;               %Number of iterations in each user's turbo decoder
 code='None';            %Class of chanel coding used {'Conv','Turbo','None'}
 
 %%%%%%%...Initializing Data...%%%%%%
-ebno=0:1:10;          %energy per bit to noise power spectral density ratio
-%ebno=[2];
+ebno=0:1:10;            %energy per bit to noise power spectral density ratio
 berRun=zeros(1,length(ebno)); %ber values after each run
 ber=zeros(1,length(ebno));  
-berMatrix=zeros(length(Users),length(ebno)); 
-nRuns=1;                %Number of runs of the code to increase output certainity
-
+nRuns=10;                %Number of runs of the code to increase output certainity
 
 %% Starting Simulation
 for k=1:length(Users)
@@ -55,12 +51,8 @@ cc=0;
 rm=0;
 h_rm=0;
 codeRate=1/2;
-%encBlockSize=((1/codeRate)*blockSize); %Size of each encoded block of data
 constrLength=1; 
 encBlockSize=(1/codeRate)*(blockSize+constrLength-1);
-%rate 1/3 poly2trellis (3, [7 3 5])
-%rate 1/2 poly2trellis(7,[171 133])
-%rate 1/2 systimatic corecursive convlutional code poly2trellis(5,[35 23],23)
 hConEnc=comm.ConvolutionalEncoder('TerminationMethod','Truncated','TrellisStructure',poly2trellis(5,[35 23],23));
 hAppDec = comm.APPDecoder(...
     'TerminationMethod','Truncated','TrellisStructure',poly2trellis(5,[35 23],23), ...
@@ -74,7 +66,7 @@ hAppDec = comm.APPDecoder(...
        end
     end 
     
-else 
+else    
 %Uncoded IDMA
 constrLength=1;
 rm_not_null=0;
@@ -85,12 +77,9 @@ hAppDec=0;
 codeRate=1;
 encData=inputData;
 encBlockSize=blockSize; 
-
 end
 
-
 %% Optional repetition spreading code
-
 if sf==1
     spreadedData=encData; %Matrix where each row represents single user spreaded encoded binary data
     sprBlockSize=encBlockSize; %Size of each spreaded encoded block of data
@@ -120,7 +109,7 @@ end
 %                       interleavers only the two master interleavers 
 %                       are  saved and each user specific intelreaver is 
 %                       generated  by its index which saves momory and 
-%                       computional complexity.
+%                       improves the computional complexity.
 
 %intBlockSize: size of the block on which interleaving was done
 %n : number of encoded blocks taken at a time to be interleaved 
@@ -129,26 +118,22 @@ end
 %             Data block size is 128.Length of each spreaded block is (5*128)
 %             If n is 2, 2 spreaded encoded  blocks will be taken together to be 
 %             interleaved and intBlockSize = 2*(5*128).
-
 n=1;
 if mod(nBlocks,n)~=0
     disp('INVALID Interleaving block size, please choose n to be factor of ');
     disp(nBlocks);
 else
-    
 intBlockSize= n*sprBlockSize;
 nIntBlocks= length(spreadedData)/intBlockSize;
 
 if isequal(intr,'random')
     intrMatrix= randIntr(nUsers,intBlockSize);
-    
 elseif isequal(intr,'power')
     M= permuter(intBlockSize);
     intrMatrix(1,:)= M;
     for i= 2: nUsers
         intrMatrix(i,:)= powerIntr(M,i);
-    end
-    
+    end    
 elseif isequal(intr,'tree') 
      M1= permuter(intBlockSize);
      M2= permuter(intBlockSize);
@@ -164,7 +149,7 @@ for i = 1 : nUsers
          sprBlock= spreadedData(i,(intBlockSize*(j-1)+1):intBlockSize*j);
          interleavedData(i,(intBlockSize*(j-1)+1):intBlockSize*j)=Interleaver(sprBlock,intrMatrix(i,:));
     end
-end 
+end
 
 end
 
@@ -177,7 +162,7 @@ H=repmat(transpose(hu),1,nUsers);
 chanOutput= channel(modData,nPaths,H);
 
 for p= 1: length(ebno)
-    p
+    
 %% AWGN Channel
 snr_lin= ((10^(ebno(p)/10))*codeRate)/(sf/2); %Eb: Information bit energy
 %NOTE........................... For real signals, N=N0/2, S(per chip)=(Eb/sf), (S/N)=(Eb/sf)*(2/N0),
@@ -187,26 +172,15 @@ ReceiverInput= awgn(sum(chanOutput,1) ,snr_db ) ;
 noiseVar=1/(2*snr_lin);           %sigma^2 linear
 
 %% Chip by chip detector
-%outputData= CBCdetector(ReceiverInput, intBlockSize, encBlockSize, H, sf, noiseVar, decItr, recItr, intrMatrix, rm_not_null,cc,rm,h_rm, blockSize,hAppDec,snr_lin);
 [outputData,sprLLR,decLLR,sprIN,decIN,sprSoftOut,decSoftOut,blokTrac]= CBCReceiever(ReceiverInput,H,sf,noiseVar,recItr,intrMatrix,codeRate,decItr,hAppDec,rm_not_null,cc,rm,h_rm,constrLength,code);
-%outputData=serialCBCReceiver( ReceiverInput, H, sf, noiseVar, recItr, intrMatrix, hAppDec,codeRate);
-berRun(p)=biterr(inputData,outputData)/(numel(inputData))
+berRun(p)=biterr(inputData,outputData)/(numel(inputData));
 
- end %end Eb/No
+      end %end Eb/No
 ber= ber+ berRun;
-end %end runs
-16
-ber=ber/(nRuns) %average BER per user
-%{
-berMatrix(k,1:end)=ber;
-semilogy(ebno,ber) ;
-xlabel({'E_b/N_0'});
-ylabel({'BER'});
-hold on;
-savefig('uncodIDMAmp16.fig');
-save('uncodIDMAmp16.mat','berMatrix','Users','ebno','nPaths');
-%xDesired= interp1(flip(unique(ber)),ebno, 0.1) %interpolation
-%}
+
+   end %end runs
+ber=ber/(nRuns); %average BER per user
+
 end %end users
 
 
