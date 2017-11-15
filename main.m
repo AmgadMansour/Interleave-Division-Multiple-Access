@@ -21,15 +21,15 @@ berRun=zeros(1,length(ebno)); %ber values after each run
 ber=zeros(1,length(ebno));  
 nRuns=10;                %Number of runs of the code to increase output certainity
 
-%% Starting Simulation
+%% %%%%%...Starting Simulation...%%%%%%
 for k=1:length(Users)
     
   nUsers=Users(1,k)
-  ber=zeros(1,length(ebno));%Total averaged ber for all code runs
+  ber=zeros(1,length(ebno)); %Total averaged ber for all code runs
 
 for r=1:nRuns
  
-inputData=randi(2,nUsers,nBits)-1 ;%Generating random binary data for given number of users
+inputData=randi(2,nUsers,nBits)-1 ;  %Generating random binary data for given number of users
 
 %%  Low rate encoder
 %encData: Matrix where each row represents each single user encoded binary data
@@ -66,7 +66,8 @@ hAppDec = comm.APPDecoder(...
        end
     end 
     
-else    
+else
+    
 %Uncoded IDMA
 constrLength=1;
 rm_not_null=0;
@@ -80,6 +81,7 @@ encBlockSize=blockSize;
 end
 
 %% Optional repetition spreading code
+
 if sf==1
     spreadedData=encData; %Matrix where each row represents single user spreaded encoded binary data
     sprBlockSize=encBlockSize; %Size of each spreaded encoded block of data
